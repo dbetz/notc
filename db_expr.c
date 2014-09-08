@@ -8,6 +8,7 @@
 #include "db_compiler.h"
 
 /* local function prototypes */
+static ParseTreeNode *ParseExpr1(ParseContext *c);
 static ParseTreeNode *ParseExpr2(ParseContext *c);
 static ParseTreeNode *ParseExpr3(ParseContext *c);
 static ParseTreeNode *ParseExpr4(ParseContext *c);
@@ -23,6 +24,7 @@ static ParseTreeNode *ParseArrayReference(ParseContext *c, ParseTreeNode *arrayN
 static ParseTreeNode *ParseCall(ParseContext *c, ParseTreeNode *functionNode);
 static ParseTreeNode *MakeUnaryOpNode(ParseContext *c, int op, ParseTreeNode *expr);
 static ParseTreeNode *MakeBinaryOpNode(ParseContext *c, int op, ParseTreeNode *left, ParseTreeNode *right);
+static ParseTreeNode *MakeAssignmentOpNode(ParseContext *c, int op, ParseTreeNode *left, ParseTreeNode *right);
 static ParseTreeNode *NewParseTreeNode(ParseContext *c, int type);
 
 /* ParseRValue - parse and generate code for an r-value */
@@ -33,8 +35,66 @@ void ParseRValue(ParseContext *c)
     code_rvalue(c, expr);
 }
 
-/* ParseExpr - handle the '||' operator */
+/* ParseExpr - handle assignment operators */
 ParseTreeNode *ParseExpr(ParseContext *c)
+{
+    ParseTreeNode *node;
+    int tkn;
+    node = ParseExpr1(c);
+    if ((tkn = GetToken(c)) == '='
+    ||   tkn == T_ADDEQ || tkn == T_SUBEQ
+    ||   tkn == T_MULEQ || tkn == T_DIVEQ || tkn == T_REMEQ
+    ||   tkn == T_ANDEQ || tkn == T_OREQ  || tkn == T_XOREQ
+    ||   tkn == T_SHLEQ || tkn == T_SHREQ) {
+        ParseTreeNode *node2 = ParseExpr(c);
+        int op;
+        switch (tkn) {
+        case '=':
+            op = OP_EQ; // indicator of simple assignment
+            break;
+        case T_ADDEQ:
+            op = OP_ADD;
+            break;
+        case T_SUBEQ:
+            op = OP_SUB;
+            break;
+        case T_MULEQ:
+            op = OP_MUL;
+            break;
+        case T_DIVEQ:
+            op = OP_DIV;
+            break;
+        case T_REMEQ:
+            op = OP_REM;
+            break;
+        case T_ANDEQ:
+            op = OP_BAND;
+            break;
+        case T_OREQ:
+            op = OP_BOR;
+            break;
+        case T_XOREQ:
+            op = OP_BXOR;
+            break;
+        case T_SHLEQ:
+            op = OP_SHL;
+            break;
+        case T_SHREQ:
+            op = OP_SHR;
+            break;
+        default:
+            /* not reached */
+            op = 0;
+            break;
+        }
+        node = MakeAssignmentOpNode(c, op, node, node2);
+    }
+    SaveToken(c, tkn);
+    return node;
+}
+
+/* ParseExpr1 - handle the '||' operator */
+static ParseTreeNode *ParseExpr1(ParseContext *c)
 {
     ParseTreeNode *node;
     int tkn;
@@ -526,6 +586,16 @@ static ParseTreeNode *MakeUnaryOpNode(ParseContext *c, int op, ParseTreeNode *ex
 static ParseTreeNode *MakeBinaryOpNode(ParseContext *c, int op, ParseTreeNode *left, ParseTreeNode *right)
 {
     ParseTreeNode *node = NewParseTreeNode(c, NodeTypeBinaryOp);
+    node->u.binaryOp.op = op;
+    node->u.binaryOp.left = left;
+    node->u.binaryOp.right = right;
+    return node;
+}
+
+/* MakeAssignmentOpNode - allocate an assignment operation parse tree node */
+static ParseTreeNode *MakeAssignmentOpNode(ParseContext *c, int op, ParseTreeNode *left, ParseTreeNode *right)
+{
+    ParseTreeNode *node = NewParseTreeNode(c, NodeTypeAssignmentOp);
     node->u.binaryOp.op = op;
     node->u.binaryOp.left = left;
     node->u.binaryOp.right = right;

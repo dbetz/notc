@@ -17,7 +17,6 @@ static int ParseVariableDecl(ParseContext *c, char *name, VMVALUE *pSize);
 static VMVALUE ParseScalarInitializer(ParseContext *c);
 static void ParseArrayInitializers(ParseContext *c, VMVALUE size);
 static void ClearArrayInitializers(ParseContext *c, VMVALUE size);
-static void ParseImpliedLetOrFunctionCall(ParseContext *c);
 static void ParseConstantDef(ParseContext *c, char *name);
 static void ParseIf(ParseContext *c);
 static void CheckForElse(ParseContext *c);
@@ -137,7 +136,8 @@ static int ParseStatement1(ParseContext *c, int tkn)
         /* fall through */
     default:
         SaveToken(c, tkn);
-        ParseImpliedLetOrFunctionCall(c);
+        ParseRValue(c);
+        putcbyte(c, OP_DROP);
         break;
     }
     
@@ -413,28 +413,6 @@ static void ClearArrayInitializers(ParseContext *c, VMVALUE size)
     if (dataPtr + size > dataTop)
         ParseError(c, "insufficient image space");
     memset(dataPtr, 0, size * sizeof(VMVALUE));
-}
-
-/* ParseImpliedLetOrFunctionCall - parse an implied let statement or a function call */
-static void ParseImpliedLetOrFunctionCall(ParseContext *c)
-{
-    ParseTreeNode *expr;
-    int tkn;
-    PVAL pv;
-    expr = ParsePrimary(c);
-    switch (tkn = GetToken(c)) {
-    case '=':
-        ParseRValue(c);
-        code_lvalue(c, expr, &pv);
-        (*pv.fcn)(c, PV_STORE, &pv);
-        break;
-    default:
-        SaveToken(c, tkn);
-        code_rvalue(c, expr);
-        putcbyte(c, OP_DROP);
-        break;
-    }
-    FRequire(c, ';');
 }
 
 /* ParseIf - parse the 'if' statement */

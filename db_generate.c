@@ -36,6 +36,7 @@ void code_rvalue(ParseContext *c, ParseTreeNode *expr)
 static void code_expr(ParseContext *c, ParseTreeNode *expr, PVAL *pv)
 {
     VMVALUE ival;
+    PVAL pv2;
     switch (expr->nodeType) {
     case NodeTypeSymbolRef:
         pv->fcn = expr->u.symbolRef.fcn;
@@ -75,6 +76,22 @@ static void code_expr(ParseContext *c, ParseTreeNode *expr, PVAL *pv)
         code_rvalue(c, expr->u.binaryOp.left);
         code_rvalue(c, expr->u.binaryOp.right);
         putcbyte(c, expr->u.binaryOp.op);
+        pv->fcn = NULL;
+        break;
+    case NodeTypeAssignmentOp:
+        if (expr->u.binaryOp.op == OP_EQ) {
+            code_rvalue(c, expr->u.binaryOp.right);
+            code_lvalue(c, expr->u.binaryOp.left, &pv2);
+            (*pv2.fcn)(c, PV_STORE, &pv2);
+        }
+        else {
+            code_lvalue(c, expr->u.binaryOp.left, &pv2);
+            (*pv2.fcn)(c, PV_ADDR, &pv2);
+            putcbyte(c, OP_DUP);
+            code_rvalue(c, expr->u.binaryOp.right);
+            putcbyte(c, expr->u.binaryOp.op);
+            (*pv2.fcn)(c, PV_STORE, &pv2);
+        }
         pv->fcn = NULL;
         break;
     case NodeTypeArrayRef:

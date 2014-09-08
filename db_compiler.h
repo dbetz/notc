@@ -24,7 +24,8 @@ typedef struct ExprListEntry ExprListEntry;
 /* lexical tokens */
 enum {
     T_NONE,
-    T_DEF = 0x100,  /* keywords start here */
+    _T_FIRST_KEYWORD = 0x100,
+    T_DEF = _T_FIRST_KEYWORD,
     T_VAR,
     T_IF,
     T_ELSE,
@@ -37,22 +38,33 @@ enum {
 #ifdef USE_ASM
     T_ASM,
 #endif
-#ifdef USE_ASM
-    T_END_ASM,
-#endif
-    T_LE,       /* non-keyword tokens */
-    T_EQ,
-    T_NE,
-    T_GE,
-    T_SHL,
-    T_SHR,
-    T_AND,
-    T_OR,
+    _T_NON_KEYWORDS,
+    T_LE = _T_NON_KEYWORDS, /* '<=' */
+    T_EQ,                   /* '==' */
+    T_NE,                   /* '!=' */
+    T_GE,                   /* '>=' */
+    T_SHL,                  /* '<<' */
+    T_SHR,                  /* '>>' */
+    T_AND,                  /* '&&' */
+    T_OR,                   /* '||' */
+    T_INC,                  /* '++' */
+    T_DEC,                  /* '--' */
+    T_ADDEQ,                /* '+=' */
+    T_SUBEQ,                /* '-=' */
+    T_MULEQ,                /* '*=' */
+    T_DIVEQ,                /* '/=' */
+    T_REMEQ,                /* '%=' */
+    T_ANDEQ,                /* '&=' */
+    T_OREQ,                 /* '|=' */
+    T_XOREQ,                /* '^=' */
+    T_SHLEQ,                /* '<<=' */
+    T_SHREQ,                /* '>>=' */
     T_IDENTIFIER,
     T_NUMBER,
     T_STRING,
     T_EOL,
-    T_EOF
+    T_EOF,
+    _T_MAX
 };
 
 /* block type */
@@ -156,6 +168,7 @@ enum {
     NodeTypeFunctionLit,
     NodeTypeUnaryOp,
     NodeTypeBinaryOp,
+    NodeTypeAssignmentOp,
     NodeTypeArrayRef,
     NodeTypeFunctionCall,
     NodeTypeDisjunction,

@@ -1,4 +1,4 @@
-/* ebasic.c - a simple basic interpreter
+/* notc.c - a simple interpreter for a c-like language
  *
  * Copyright (c) 2014 by David Michael Betz.  All rights reserved.
  *
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
         return 1;
         
     sys->freeMark = sys->freeNext;
-
+    
     for (;;) {
         if ((code = Compile(sys, image)) != 0) {
             sys->freeNext = sys->freeMark;

@@ -66,7 +66,7 @@ static VM_Mailbox mailbox;
 static VM_State state;
 static int cog;
 
-use_cog_driver(ebasic_vm);
+use_cog_driver(notc_vm);
 
 static int StartInterpreter(Interpreter *i, size_t stackSize);
 static void StopInterpreter(Interpreter *i);
@@ -91,7 +91,7 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
         return VMFALSE;
 
     state.pc = (uint8_t *)main;
-    state.stepping = 0;
+    state.stepping = 1;
     mailbox.cmd = VM_Continue;
         
     running = VMTRUE;
@@ -196,7 +196,7 @@ static int StartInterpreter(Interpreter *i, size_t stackSize)
     
     mailbox.cmd = VM_Continue;
     
-    if ((cog = load_cog_driver(ebasic_vm, &init)) < 0)
+    if ((cog = load_cog_driver(notc_vm, &init)) < 0)
         return VMFALSE;
         
     while (mailbox.cmd != VM_Done)

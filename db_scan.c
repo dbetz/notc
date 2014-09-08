@@ -35,6 +35,35 @@ static struct {
 {   NULL,       0           }
 };
 
+/* special no-identifier tokens */
+static char *ttab[] = {
+"<=",
+"==",
+"!=",
+">=",
+"<<",
+">>",
+"&&",
+"||",
+"++",
+"--",
+"+=",
+"-=",
+"*=",
+"/=",
+"%=",
+"&=",
+"|=",
+"^=",
+"<<=",
+">>=",
+"<identifier>",
+"<integer>",
+"<string>",
+"<eol>",
+"<eof>"
+};
+
 /* local function prototypes */
 static int NextToken(ParseContext *c);
 static int IdentifierToken(ParseContext *c, int ch);
@@ -45,8 +74,6 @@ static int BinaryNumberToken(ParseContext *c);
 static int StringToken(ParseContext *c);
 static int CharToken(ParseContext *c);
 static int LiteralChar(ParseContext *c);
-static int SkipComment(ParseContext *c);
-static int XGetC(ParseContext *c);
 
 /* FRequire - fetch a token and check it */
 void FRequire(ParseContext *c, int requiredToken)
@@ -90,81 +117,23 @@ void SaveToken(ParseContext *c, int token)
 /* TokenName - get the name of a token */
 char *TokenName(int token)
 {
-    static char nameBuf[4];
     char *name;
-
-    switch (token) {
-    case T_NONE:
-        name = "<NONE>";
-        break;
-    case T_DEF:
-    case T_VAR:
-    case T_IF:
-    case T_ELSE:
-    case T_FOR:
-    case T_DO:
-    case T_WHILE:
-    case T_GOTO:
-    case T_RETURN:
-    case T_PRINT:
-#ifdef USE_ASM
-    case T_ASM:
-#endif
-        name = ktab[token - T_DEF].keyword;
-        break;
-#ifdef USE_ASM
-    case T_END_ASM:
-        name = "END ASM";
-        break;
-#endif
-    case T_LE:
-        name = "<=";
-        break;
-    case T_EQ:
-        name = "==";
-        break;
-    case T_NE:
-        name = "!=";
-        break;
-    case T_GE:
-        name = ">=";
-        break;
-    case T_SHL:
-        name = "<<";
-        break;
-    case T_SHR:
-        name = ">>";
-        break;
-    case T_AND:
-        name = "&&";
-        break;
-    case T_OR:
-        name = "||";
-        break;
-    case T_IDENTIFIER:
-        name = "<IDENTIFIER>";
-        break;
-    case T_NUMBER:
-        name = "<NUMBER>";
-        break;
-    case T_STRING:
-        name = "<STRING>";
-        break;
-    case T_EOL:
-        name = "<EOL>";
-        break;
-    case T_EOF:
-        name = "<EOF>";
-        break;
-    default:
+    
+    if (token < _T_FIRST_KEYWORD) {
+        static char nameBuf[4];
         nameBuf[0] = '\'';
         nameBuf[1] = token;
         nameBuf[2] = '\'';
         nameBuf[3] = '\0';
         name = nameBuf;
-        break;
     }
-
+    else if (token < _T_NON_KEYWORDS)
+        name = ktab[token - _T_FIRST_KEYWORD].keyword;
+    else if (token < _T_MAX)
+        name = ttab[token - _T_NON_KEYWORDS];
+    else
+        name = "<invalid>";
+        
     /* return the token name */
     return name;
 }
@@ -172,8 +141,10 @@ char *TokenName(int token)
 /* NextToken - read the next token */
 static int NextToken(ParseContext *c)
 {
-    int ch, tkn;
+    int tkn = T_NONE;
+    int ch, ch2;
     
+again:
     /* skip leading blanks */
     ch = SkipSpaces(c);
 
@@ -192,21 +163,24 @@ static int NextToken(ParseContext *c)
         tkn = CharToken(c);
         break;
     case '<':
-        if ((ch = GetChar(c)) == '=')
-            tkn = T_LE;
-        else if (ch == '<')
-            tkn = T_SHL;
-        else {
+        switch (ch = GetChar(c)) {
+        case '=':
+            return T_LE;
+        case '<':
+            if ((ch = GetChar(c)) == '=')
+                return T_SHLEQ;
             UngetC(c);
-            tkn = '<';
+            return T_SHL;
+        default:
+            UngetC(c);
+            return '<';
         }
-        break;
     case '=':
         if ((ch = GetChar(c)) == '=')
-            tkn = T_EQ;
+            return T_EQ;
         else {
             UngetC(c);
-            tkn = '=';
+            return '=';
         }
         break;
     case '!':
@@ -218,29 +192,88 @@ static int NextToken(ParseContext *c)
         }
         break;
     case '>':
-        if ((ch = GetChar(c)) == '=')
-            tkn = T_GE;
-        else if (ch == '>')
-            tkn = T_SHR;
-        else {
+       switch (ch = GetChar(c)) {
+        case '=':
+            return T_GE;
+        case '>':
+            if ((ch = GetChar(c)) == '=')
+                return T_SHREQ;
             UngetC(c);
-            tkn = '>';
+            return T_SHR;
+        default:
+            UngetC(c);
+            return '>';
         }
-        break;
     case '&':
-        if ((ch = GetChar(c)) == '&')
-            tkn = T_AND;
-        else {
+        switch (ch = GetChar(c)) {
+        case '&':
+            return T_AND;
+        case '=':
+            return T_ANDEQ;
+        default:
             UngetC(c);
-            tkn = '&';
+            return '&';
         }
-        break;
     case '|':
-        if ((ch = GetChar(c)) == '|')
-            tkn = T_AND;
-        else {
+        switch (ch = GetChar(c)) {
+        case '|':
+            return T_OR;
+        case '=':
+            return T_OREQ;
+        default:
             UngetC(c);
-            tkn = '|';
+            return '|';
+        }
+    case '^':
+        if ((ch = GetChar(c)) == '=')
+            return T_XOREQ;
+        UngetC(c);
+        return '^';
+    case '+':
+        switch (ch = GetChar(c)) {
+        case '+':
+            return T_INC;
+        case '=':
+            return T_ADDEQ;
+        default:
+            UngetC(c);
+            return '+';
+        }
+    case '-':
+        switch (ch = GetChar(c)) {
+        case '-':
+            return T_DEC;
+        case '=':
+            return T_SUBEQ;
+        default:
+            UngetC(c);
+            return '-';
+        }
+    case '*':
+        if ((ch = GetChar(c)) == '=')
+            return T_MULEQ;
+        UngetC(c);
+        return '*';
+    case '/':
+        switch (ch = GetChar(c)) {
+        case '=':
+            return T_DIVEQ;
+        case '/':
+        printf("found comment to end of line\n");
+            while ((ch = GetChar(c)) != EOF)
+                if (ch == '\n')
+                    goto again;
+            break;
+        case '*':
+        printf("found delimited comment\n");
+            ch = ch2 = EOF;
+            for (; (ch2 = GetChar(c)) != EOF; ch = ch2)
+                if (ch == '*' && ch2 == '/')
+                    goto again;
+            break;
+        default:
+            UngetC(c);
+            return '/';
         }
         break;
     case '0':
@@ -383,7 +416,7 @@ static int StringToken(ParseContext *c)
 
     /* collect the string */
     p = c->token; len = 0;
-    while ((ch = XGetC(c)) != EOF && ch != '"') {
+    while ((ch = GetChar(c)) != EOF && ch != '"') {
         if (++len > MAXTOKEN)
             ParseError(c, "String too long");
         *p++ = (ch == '\\' ? LiteralChar(c) : ch);
@@ -402,7 +435,7 @@ static int StringToken(ParseContext *c)
 static int CharToken(ParseContext *c)
 {
     int ch = LiteralChar(c);
-    if (XGetC(c) != '\'')
+    if (GetChar(c) != '\'')
         ParseError(c,"Expecting a closing single quote");
     c->token[0] = ch;
     c->token[1] = '\0';
@@ -414,7 +447,7 @@ static int CharToken(ParseContext *c)
 static int LiteralChar(ParseContext *c)
 {
     int ch;
-    switch (ch = XGetC(c)) {
+    switch (ch = GetChar(c)) {
     case 'n': 
         ch = '\n';
         break;
@@ -441,68 +474,8 @@ int SkipSpaces(ParseContext *c)
     return ch;
 }
 
-/* SkipComment - skip characters up to the end of a comment */
-static int SkipComment(ParseContext *c)
-{
-    int lastch, ch;
-    lastch = '\0';
-    while ((ch = XGetC(c)) != EOF) {
-        if (lastch == '*' && ch == '/')
-            return VMTRUE;
-        lastch = ch;
-    }
-    return VMFALSE;
-}
-
 /* GetChar - get the next character */
 int GetChar(ParseContext *c)
-{
-    int ch;
-
-    /* check for being in a comment */
-    if (c->inComment) {
-        if (!SkipComment(c))
-            return EOF;
-        c->inComment = VMFALSE;
-    }
-
-    /* loop until we find a non-comment character */
-    for (;;) {
-        
-        /* get the next character */
-        if ((ch = XGetC(c)) == EOF)
-            return EOF;
-
-        /* check for a comment */
-        else if (ch == '/') {
-            if ((ch = XGetC(c)) == '/') {
-                while ((ch = XGetC(c)) != EOF)
-                    ;
-            }
-            else if (ch == '*') {
-                if (!SkipComment(c)) {
-                    c->inComment = VMTRUE;
-                    return EOF;
-                }
-            }
-            else {
-                UngetC(c);
-                ch = '/';
-                break;
-            }
-        }
-
-        /* handle a normal character */
-        else
-            break;
-    }
-
-    /* return the character */
-    return ch;
-}
-
-/* XGetC - get the next character without checking for comments */
-static int XGetC(ParseContext *c)
 {
     int ch;
     

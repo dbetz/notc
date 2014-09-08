@@ -12,7 +12,7 @@
 #include "db_vm.h"
 #include "db_vmdebug.h"
 
-//#define DEBUG
+#define DEBUG
 
 /* interpreter state structure */
 typedef struct {
@@ -218,12 +218,14 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
         case OP_STORE:
             tmp = Pop(i);
             *(VMVALUE *)i->tos = tmp;
-            i->tos = Pop(i);
+            i->tos = tmp;
+//            i->tos = Pop(i);
             break;
         case OP_STOREB:
             tmp = Pop(i);
             *(uint8_t *)i->tos = tmp;
-            i->tos = Pop(i);
+            i->tos = tmp;
+//            i->tos = Pop(i);
             break;
         case OP_LREF:
             tmpb = (int8_t)VMCODEBYTE(i->pc++);

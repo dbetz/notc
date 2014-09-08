@@ -14,7 +14,7 @@ db_system.o \
 db_vmint_pasm.o \
 osint_propgcc.o \
 simple_vsnprintf.o \
-ebasic_vm.o
+notc_vm.o
 
 OBJS += db_vmdebug.o
 
@@ -35,7 +35,7 @@ MODEL = cmm
 endif
 
 CFLAGS = -m$(MODEL) -Wall -Os -DPROPELLER_GCC -Dvsnprintf=__simple_vsnprintf
-CFLAGS += -DUSE_FDS
+#CFLAGS += -DUSE_FDS
 
 LDFLAGS += $(CFLAGS) -fno-exceptions -fno-rtti
 

@@ -429,7 +429,7 @@ _OP_STORE              ' store a long into memory
         mov     t2,t1
         mov     t1,tos
         call    #_write_long
-        call    #pop_tos
+'        call    #pop_tos
         jmp     #_next
         
 _OP_STOREB             ' store a byte into memory
@@ -437,7 +437,7 @@ _OP_STOREB             ' store a byte into memory
         mov     t2,t1
         mov     t1,tos
         call    #_write_byte
-        call    #pop_tos
+'        call    #pop_tos
         jmp     #_next
 
 _OP_LREF               ' load a local variable relative to the frame pointer

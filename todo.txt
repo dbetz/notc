@@ -1,1 +1,4 @@
+Problems with addressing arrays.
+Problems with assignment operators.
+Implement ++ and --.
 The branch fixup lists should use relative addresses rather than offsets from the start of the function.
