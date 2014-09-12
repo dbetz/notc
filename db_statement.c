@@ -138,6 +138,7 @@ static int ParseStatement1(ParseContext *c, int tkn)
         SaveToken(c, tkn);
         ParseRValue(c);
         putcbyte(c, OP_DROP);
+        FRequire(c, ';');
         break;
     }
     
@@ -501,72 +502,64 @@ void FinishDoWhile(ParseContext *c)
 /* ParseFor - parse the 'for' statement */
 static void ParseFor(ParseContext *c)
 {
-#if 0
-    ParseTreeNode *var, *step;
-    int test, body, inst;
-    int tkn;
-    PVAL pv;
+    int tkn, nxt, body, inst, test;
+//    SENTRY *ob, *oc;
 
     PushBlock(c, BLOCK_FOR);
 
-    /* get the control variable */
-    FRequire(c, T_IDENTIFIER);
-    var = GetSymbolRef(c, c->token);
-    code_lvalue(c, var, &pv);
-    FRequire(c, '=');
+    /* compile the initialization expression */
+    FRequire(c, '(');
+    if ((tkn = GetToken(c)) != ';') {
+        SaveToken(c, tkn);
+        ParseRValue(c);
+        FRequire(c, ';');
+        putcbyte(c, OP_DROP);
+    }
 
-    /* parse the starting value expression */
-    ParseRValue(c);
+    /* compile the test expression */
+    nxt = codeaddr(c);
+    if ((tkn = GetToken(c)) == ';')
+        test = VMFALSE;
+    else {
+        SaveToken(c, tkn);
+        ParseRValue(c);
+        FRequire(c, ';');
+        test = VMTRUE;
+    }
 
-    /* parse the TO expression and generate the loop termination test */
-    test = codeaddr(c);
-    (*pv.fcn)(c, PV_STORE, &pv);
-    (*pv.fcn)(c, PV_LOAD, &pv);
-    FRequire(c, T_TO);
-    ParseRValue(c);
-    putcbyte(c, OP_LE);
-    putcbyte(c, OP_BRT);
+    /* branch to the loop body if the expression is true */
+    putcbyte(c, test ? OP_BRT : OP_BR);
     body = putcword(c, 0);
 
-    /* branch to the end if the termination test fails */
-    putcbyte(c, OP_BR);
-    c->bptr->u.ForBlock.end = putcword(c, 0);
-
-    /* update the for variable after an iteration of the loop */
-    c->bptr->u.ForBlock.nxt = codeaddr(c);
-    (*pv.fcn)(c, PV_LOAD, &pv);
-
-    /* get the STEP expression */
-    if ((tkn = GetToken(c)) == T_STEP) {
-        step = ParseExpr(c);
-        code_rvalue(c, step);
-        tkn = GetToken(c);
+    /* branch to the end if the expression is false */
+    if (test) {
+        putcbyte(c, OP_BR);
+        c->bptr->u.DoBlock.end = putcword(c, 0);
     }
 
-    /* no step so default to one */
-    else {
-        putcbyte(c, OP_SLIT);
-        putcbyte(c, 1);
+    /* compile the update expression */
+    c->bptr->u.DoBlock.nxt = codeaddr(c);
+    if ((tkn = GetToken(c)) != ')') {
+        SaveToken(c, tkn);
+        ParseRValue(c);
+        putcbyte(c, OP_DROP);
+        FRequire(c, ')');
     }
 
-    /* generate the increment code */
-    putcbyte(c, OP_ADD);
+    /* branch back to the test code */
     inst = putcbyte(c, OP_BR);
-    putcword(c, test - inst - 1 - sizeof(VMWORD));
+    putcword(c, nxt - inst - 1 - sizeof(VMWORD));
 
-    /* branch to the loop body */
+    /* compile the loop body */
     fixupbranch(c, body, codeaddr(c));
-    Require(c, tkn, ';');
-#endif
+//    ob = addbreak(c, end);
+//    oc = addcontinue(c, update);
 }
 
 /* FinishFor - finish a 'for' statement */
 void FinishFor(ParseContext *c)
 {
     int inst;
-    FRequire(c, T_IDENTIFIER);
-    GetSymbolRef(c, c->token);
-    /* BUG: check to make sure it matches the symbol used in the FOR */
     inst = putcbyte(c, OP_BR);
     putcword(c, c->bptr->u.ForBlock.nxt - inst - 1 - sizeof(VMWORD));
     fixupbranch(c, c->bptr->u.ForBlock.end, codeaddr(c));

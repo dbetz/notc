@@ -259,13 +259,11 @@ again:
         case '=':
             return T_DIVEQ;
         case '/':
-        printf("found comment to end of line\n");
             while ((ch = GetChar(c)) != EOF)
                 if (ch == '\n')
                     goto again;
             break;
         case '*':
-        printf("found delimited comment\n");
             ch = ch2 = EOF;
             for (; (ch2 = GetChar(c)) != EOF; ch = ch2)
                 if (ch == '*' && ch2 == '/')

@@ -10,25 +10,30 @@
 
 static uint8_t bi_waitcnt[] = {
     OP_FRAME, 2,
-    OP_LREF, 0,
+    OP_LADDR, 0,
+    OP_LOAD,
     OP_NATIVE, 0xf8,0x7c,0x0a,0x00, // waitcnt tos, #0
     OP_RETURN
 };
 
 static uint8_t bi_waitpeq[] = {
     OP_FRAME, 2,
-    OP_LREF, 1,                     // get mask
+    OP_LADDR, 1,                    // get mask
+    OP_LOAD,
     OP_NATIVE, 0xa0,0xbc,0x02,0x05, // mov t1, tos
-    OP_LREF, 0,                     // get state
+    OP_LADDR, 0,                    // get state
+    OP_LOAD,
     OP_NATIVE, 0xf0,0xbc,0x0a,0x01, // waitpeq tos, t1 wr
     OP_RETURN
 };
 
 static uint8_t bi_waitpne[] = {
     OP_FRAME, 2,
-    OP_LREF, 1,                     // get mask
+    OP_LADDR, 1,                    // get mask
+    OP_LOAD,
     OP_NATIVE, 0xa0,0xbc,0x02,0x05, // mov t1, tos
-    OP_LREF, 0,                     // get state
+    OP_LADDR, 0,                    // get state
+    OP_LOAD,
     OP_NATIVE, 0xf4,0xbc,0x0a,0x01, // waitpne tos, t1 wr
     OP_RETURN
 };

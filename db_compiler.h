@@ -142,30 +142,27 @@ typedef struct {
     Block *btop;                    /* parse - top of block stack */
 } ParseContext;
 
-/* partial value function codes */
+/* partial value type codes */
 typedef enum {
-    PV_ADDR,
+    VT_RVALUE,
+    VT_LVALUE
+} PVAL;
+
+/* partial value function codes */
+enum {
     PV_LOAD,
     PV_STORE
-} PValOp;
-
-/* partial value structure */
-typedef struct PVAL PVAL;
-struct PVAL {
-    void (*fcn)(ParseContext *c, PValOp op, PVAL *pv);
-    union {
-        Symbol *sym;
-        String *str;
-        VMVALUE val;
-    } u;
 };
 
 /* parse tree node types */
 enum {
-    NodeTypeSymbolRef,
+    NodeTypeGlobalSymbolRef,
+    NodeTypeLocalSymbolRef,
     NodeTypeStringLit,
     NodeTypeIntegerLit,
     NodeTypeFunctionLit,
+    NodeTypePreincrementOp,
+    NodeTypePostincrementOp,
     NodeTypeUnaryOp,
     NodeTypeBinaryOp,
     NodeTypeAssignmentOp,
@@ -180,8 +177,8 @@ struct ParseTreeNode {
     int nodeType;
     union {
         struct {
+            int valueType;
             Symbol *symbol;
-            void (*fcn)(ParseContext *c, PValOp op, PVAL *pv);
             int offset;
         } symbolRef;
         struct {
@@ -197,6 +194,10 @@ struct ParseTreeNode {
             int op;
             ParseTreeNode *expr;
         } unaryOp;
+        struct {
+            int increment;
+            ParseTreeNode *expr;
+        } incrementOp;
         struct {
             int op;
             ParseTreeNode *left;
@@ -272,8 +273,6 @@ void code_lvalue(ParseContext *c, ParseTreeNode *expr, PVAL *pv);
 void code_rvalue(ParseContext *c, ParseTreeNode *expr);
 void rvalue(ParseContext *c, PVAL *pv);
 void chklvalue(ParseContext *c, PVAL *pv);
-void code_global(ParseContext *c, PValOp fcn, PVAL *pv);
-void code_local(ParseContext *c, PValOp fcn, PVAL *pv);
 int codeaddr(ParseContext *c);
 int putcbyte(ParseContext *c, int v);
 int putcword(ParseContext *c, VMWORD v);

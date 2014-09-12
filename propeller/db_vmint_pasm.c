@@ -11,11 +11,7 @@
 #include <ctype.h>
 #include <propeller.h>
 #include "../db_vm.h"
-
-/* interpreter state structure */
-typedef struct {
-    int cogn;
-} Interpreter;
+#include "../db_vmdebug.h"
 
 /* VM commands */
 enum {
@@ -38,14 +34,14 @@ enum {
     STS_IllegalOpcode = 7
 };
 
-/* VM mailbox structure */
+/* VM mailbox structure (12 bytes) */
 typedef struct {
     volatile uint32_t cmd;
     volatile uint32_t arg_sts;
     volatile uint32_t arg2_fcn;
 } VM_Mailbox;
 
-/* VM state structure */
+/* VM state structure (20 bytes) */
 typedef struct {
     volatile VMVALUE *fp;
     volatile VMVALUE *sp;
@@ -54,22 +50,20 @@ typedef struct {
     volatile int stepping;
 } VM_State;
 
-/* VM initialization structure */
+/* interpreter state structure */
 typedef struct {
-    VM_Mailbox *mailbox;
-    VM_State *state;
+    VM_Mailbox mailbox;
+    VM_State state;
     VMVALUE *stack;
     VMVALUE *stackTop;
-} VM_Init;
-
-static VM_Mailbox mailbox;
-static VM_State state;
-static int cog;
+    int cogn;
+} Interpreter;
 
 use_cog_driver(notc_vm);
 
 static int StartInterpreter(Interpreter *i, size_t stackSize);
 static void StopInterpreter(Interpreter *i);
+static void ShowState(Interpreter *i);
 
 /* Execute - execute the main code */
 int Execute(System *sys, ImageHdr *image, VMVALUE main)
@@ -90,17 +84,17 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
     if (!StartInterpreter(i, stackSize))
         return VMFALSE;
 
-    state.pc = (uint8_t *)main;
-    state.stepping = 1;
-    mailbox.cmd = VM_Continue;
+    i->state.pc = (uint8_t *)main;
+    i->state.stepping = 0;
+    i->mailbox.cmd = VM_Continue;
         
     running = VMTRUE;
     while (running) {
     
-        while (mailbox.cmd != VM_Done)
+        while (i->mailbox.cmd != VM_Done)
             ;
         
-        switch (mailbox.arg_sts) {
+        switch (i->mailbox.arg_sts) {
         case STS_Fail:
             VM_printf("Fail\n");
             running = VMFALSE;
@@ -109,42 +103,42 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
             running = VMFALSE;
             break;
         case STS_Step:
-            VM_printf("Step: pc %08x, sp %08x, fp %08x, tos %08x\n", (VMUVALUE)state.pc, (VMUVALUE)state.sp, (VMUVALUE)state.fp, state.tos);
-            mailbox.cmd = VM_Continue;
+            ShowState(i);
+            i->mailbox.cmd = VM_Continue;
             break;
         case STS_Trap:
-            switch (mailbox.arg2_fcn) {
+            switch (i->mailbox.arg2_fcn) {
             case TRAP_GetChar:
-                *--state.sp = state.tos;
-                state.tos = getchar();
-                mailbox.cmd = VM_Continue;
+                *--i->state.sp = i->state.tos;
+                i->state.tos = getchar();
+                i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PutChar:
-                putchar(state.tos);
-                state.tos = *state.sp++;
-                mailbox.cmd = VM_Continue;
+                putchar(i->state.tos);
+                i->state.tos = *i->state.sp++;
+                i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintStr:
-                VM_printf("%s", (char *)state.tos);
-                state.tos = *state.sp++;
-                mailbox.cmd = VM_Continue;
+                VM_printf("%s", (char *)i->state.tos);
+                i->state.tos = *i->state.sp++;
+                i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintInt:
-                VM_printf("%d", state.tos);
-                state.tos = *state.sp++;
-                mailbox.cmd = VM_Continue;
+                VM_printf("%d", i->state.tos);
+                i->state.tos = *i->state.sp++;
+                i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintTab:
                 putchar('\t');
-                mailbox.cmd = VM_Continue;
+                i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintNL:
                 putchar('\n');
-                mailbox.cmd = VM_Continue;
+                i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintFlush:
                 fflush(stdout);
-                mailbox.cmd = VM_Continue;
+                i->mailbox.cmd = VM_Continue;
                 break;
             default:
                 VM_printf("Unknown trap\n");
@@ -165,7 +159,7 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
             running = VMFALSE;
             break;
         case STS_IllegalOpcode:
-            VM_printf("Illegal opcode: pc %08x\n", (VMUVALUE)state.pc);
+            VM_printf("Illegal opcode: pc %08x\n", (VMUVALUE)i->state.pc);
             running = VMFALSE;
             break;
         default:
@@ -184,22 +178,19 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
 static int StartInterpreter(Interpreter *i, size_t stackSize)
 {
     VMVALUE *stack, *stackTop;
-    VM_Init init;
 
     stack = (VMVALUE *)((uint8_t *)i + sizeof(Interpreter));
     stackTop = (VMVALUE *)((uint8_t *)stack + stackSize);
 
-    init.mailbox = &mailbox;
-    init.state = &state;
-    init.stack = stack;
-    init.stackTop = stackTop;
+    i->stack = stack;
+    i->stackTop = stackTop;
     
-    mailbox.cmd = VM_Continue;
+    i->mailbox.cmd = VM_Continue;
     
-    if ((cog = load_cog_driver(notc_vm, &init)) < 0)
+    if ((i->cogn = load_cog_driver(notc_vm, i)) < 0)
         return VMFALSE;
         
-    while (mailbox.cmd != VM_Done)
+    while (i->mailbox.cmd != VM_Done)
         ;
         
     return VMTRUE;
@@ -214,3 +205,18 @@ static void StopInterpreter(Interpreter *i)
     }
 }
 
+/* ShowState - show the state of the interpreter */
+static void ShowState(Interpreter *i)
+{
+    VMVALUE *p = (VMVALUE *)i->state.sp;
+    if (p < i->stackTop) {
+        VM_printf(" %d", i->state.tos);
+        for (; p < i->stackTop - 1; ++p) {
+            if (p == i->state.fp)
+                VM_printf(" <fp>");
+            VM_printf(" %d", *p);
+        }
+        VM_printf("\n");
+    }
+    DecodeInstruction((uint8_t *)i->state.pc, (uint8_t *)i->state.pc);
+}

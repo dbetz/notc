@@ -41,11 +41,11 @@ ParseTreeNode *ParseExpr(ParseContext *c)
     ParseTreeNode *node;
     int tkn;
     node = ParseExpr1(c);
-    if ((tkn = GetToken(c)) == '='
-    ||   tkn == T_ADDEQ || tkn == T_SUBEQ
-    ||   tkn == T_MULEQ || tkn == T_DIVEQ || tkn == T_REMEQ
-    ||   tkn == T_ANDEQ || tkn == T_OREQ  || tkn == T_XOREQ
-    ||   tkn == T_SHLEQ || tkn == T_SHREQ) {
+    while ((tkn = GetToken(c)) == '='
+    ||      tkn == T_ADDEQ || tkn == T_SUBEQ
+    ||      tkn == T_MULEQ || tkn == T_DIVEQ || tkn == T_REMEQ
+    ||      tkn == T_ANDEQ || tkn == T_OREQ  || tkn == T_XOREQ
+    ||      tkn == T_SHLEQ || tkn == T_SHREQ) {
         ParseTreeNode *node2 = ParseExpr(c);
         int op;
         switch (tkn) {
@@ -422,6 +422,16 @@ static ParseTreeNode *ParseExpr11(ParseContext *c)
         else
             node = MakeUnaryOpNode(c, OP_BNOT, node);
         break;
+    case T_INC:
+        node = NewParseTreeNode(c, NodeTypePreincrementOp);
+        node->u.incrementOp.increment = 1;
+        node->u.incrementOp.expr = ParsePrimary(c);
+        break;
+    case T_DEC:
+        node = NewParseTreeNode(c, NodeTypePreincrementOp);
+        node->u.incrementOp.increment = -1;
+        node->u.incrementOp.expr = ParsePrimary(c);
+        break;
     default:
         SaveToken(c,tkn);
         node = ParsePrimary(c);
@@ -433,16 +443,28 @@ static ParseTreeNode *ParseExpr11(ParseContext *c)
 /* ParsePrimary - parse function calls and array references */
 ParseTreeNode *ParsePrimary(ParseContext *c)
 {
-    ParseTreeNode *node;
+    ParseTreeNode *node, *node2;
     int tkn;
     node = ParseSimplePrimary(c);
-    while ((tkn = GetToken(c)) == '(' || tkn == '[' || tkn == '.') {
+    while ((tkn = GetToken(c)) == '[' || tkn == '(' || tkn == T_INC || tkn == T_DEC) {
         switch (tkn) {
         case '[':
             node = ParseArrayReference(c, node);
             break;
         case '(':
             node = ParseCall(c, node);
+            break;
+        case T_INC:
+            node2 = NewParseTreeNode(c, NodeTypePostincrementOp);
+            node2->u.incrementOp.increment = 1;
+            node2->u.incrementOp.expr = node;
+            node = node2;
+            break;
+        case T_DEC:
+            node2 = NewParseTreeNode(c, NodeTypePostincrementOp);
+            node2->u.incrementOp.increment = -1;
+            node2->u.incrementOp.expr = node;
+            node = node2;
             break;
         }
     }
@@ -527,7 +549,7 @@ static ParseTreeNode *ParseSimplePrimary(ParseContext *c)
 /* GetSymbolRef - setup a symbol reference */
 ParseTreeNode *GetSymbolRef(ParseContext *c, char *name)
 {
-    ParseTreeNode *node = NewParseTreeNode(c, NodeTypeSymbolRef);
+    ParseTreeNode *node = NewParseTreeNode(c, NodeTypeGlobalSymbolRef);
     Symbol *symbol;
 
     /* handle local variables within a function or subroutine */
@@ -537,16 +559,15 @@ ParseTreeNode *GetSymbolRef(ParseContext *c, char *name)
             node->u.integerLit.value = symbol->value;
         }
         else {
+            node->nodeType = NodeTypeLocalSymbolRef;
             node->u.symbolRef.symbol = symbol;
-            node->u.symbolRef.fcn = code_local;
             node->u.symbolRef.offset = -symbol->value - 1;
         }
     }
 
     /* handle function or subroutine arguments or the return value symbol */
     else if (c->codeType != CODE_TYPE_MAIN && (symbol = FindSymbol(&c->arguments, name)) != NULL) {
-        node->u.symbolRef.symbol = symbol;
-        node->u.symbolRef.fcn = code_local;
+        node->nodeType = NodeTypeLocalSymbolRef;
         node->u.symbolRef.offset = c->arguments.count - symbol->value - 1;
     }
 
@@ -558,7 +579,6 @@ ParseTreeNode *GetSymbolRef(ParseContext *c, char *name)
         }
         else {
             node->u.symbolRef.symbol = symbol;
-            node->u.symbolRef.fcn = code_global;
         }
     }
 
@@ -566,7 +586,6 @@ ParseTreeNode *GetSymbolRef(ParseContext *c, char *name)
     else {
         symbol = AddGlobal(c, name, SC_VARIABLE, 0);
         node->u.symbolRef.symbol = symbol;
-        node->u.symbolRef.fcn = code_global;
     }
 
     /* return the symbol reference node */

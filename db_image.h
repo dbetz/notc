@@ -64,14 +64,14 @@ typedef struct {
 #define OP_LOADB        0x1c    /* load a byte from memory */
 #define OP_STORE        0x1d    /* store a long into memory */
 #define OP_STOREB       0x1e    /* store a byte into memory */
-#define OP_LREF         0x1f    /* load a local variable relative to the frame pointer */
-#define OP_LSET         0x20    /* set a local variable relative to the frame pointer */
-#define OP_INDEX        0x21    /* index into a vector of longs */
-#define OP_CALL         0x22    /* call a function */
-#define OP_FRAME        0x23    /* create a stack frame */
-#define OP_RETURN       0x24    /* remove a stack frame and return from a function call */
-#define OP_DROP         0x25    /* drop the top element of the stack */
-#define OP_DUP          0x26    /* duplicate the top element of the stack */
+#define OP_LADDR        0x1f    /* load the address of a local variable */
+#define OP_INDEX        0x20    /* index into a vector of longs */
+#define OP_CALL         0x21    /* call a function */
+#define OP_FRAME        0x22    /* create a stack frame */
+#define OP_RETURN       0x23    /* remove a stack frame and return from a function call */
+#define OP_DROP         0x24    /* drop the top element of the stack */
+#define OP_DUP          0x25    /* duplicate the top element of the stack */
+#define OP_TUCK         0x26    /* a b -> b a b */
 #define OP_NATIVE       0x27    /* execute native code */
 #define OP_TRAP         0x28    /* trap to handler */
 

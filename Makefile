@@ -14,6 +14,19 @@ osint_posix.o
 
 OBJS += db_vmdebug.o
 
+HDRS = \
+db_compiler.h \
+db_image.h \
+db_symbols.h \
+db_system.h \
+db_types.h \
+db_vm.h \
+db_vmdebug.h
+
+all:	notc
+
+$(OBJS):	$(HDRS)
+
 CFLAGS = -Wall -Os -DMAC -m32
 #CFLAGS = -Wall -DMAC -m32 -g
 

@@ -12,7 +12,7 @@
 #include "db_vm.h"
 #include "db_vmdebug.h"
 
-#define DEBUG
+//#define DEBUG
 
 /* interpreter state structure */
 typedef struct {
@@ -217,25 +217,16 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
             break;
         case OP_STORE:
             tmp = Pop(i);
-            *(VMVALUE *)i->tos = tmp;
-            i->tos = tmp;
-//            i->tos = Pop(i);
+            *(VMVALUE *)tmp = i->tos;
             break;
         case OP_STOREB:
             tmp = Pop(i);
-            *(uint8_t *)i->tos = tmp;
-            i->tos = tmp;
-//            i->tos = Pop(i);
+            *(uint8_t *)tmp = i->tos;
             break;
-        case OP_LREF:
+        case OP_LADDR:
             tmpb = (int8_t)VMCODEBYTE(i->pc++);
             CPush(i, i->tos);
-            i->tos = i->fp[(int)tmpb];
-            break;
-        case OP_LSET:
-            tmpb = (int8_t)VMCODEBYTE(i->pc++);
-            i->fp[(int)tmpb] = i->tos;
-            i->tos = Pop(i);
+            i->tos = (VMVALUE)&i->fp[(int)tmpb];
             break;
         case OP_INDEX:
             tmp = Pop(i);
@@ -266,6 +257,12 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
             break;
         case OP_DUP:
             CPush(i, i->tos);
+            break;
+        case OP_TUCK:
+            CPush(i, i->tos);
+            tmp = i->sp[0];
+            i->sp[0] = i->sp[1];
+            i->sp[1] = tmp;
             break;
         case OP_NATIVE:
             for (tmp = 0, cnt = sizeof(VMUVALUE); --cnt >= 0; )

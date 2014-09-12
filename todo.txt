@@ -1,4 +1,4 @@
-Problems with addressing arrays.
-Problems with assignment operators.
-Implement ++ and --.
-The branch fixup lists should use relative addresses rather than offsets from the start of the function.
+Add comma operator.
+Fix bug with auto-dimensioned arrays.
+Implement 'break' and 'continue'.
+Implement the TUCK opcode to use with x++ and x--.

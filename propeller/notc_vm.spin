@@ -46,17 +46,17 @@ OP_LOAD         = $1b    ' load a long from memory
 OP_LOADB        = $1c    ' load a byte from memory
 OP_STORE        = $1d    ' store a long in memory
 OP_STOREB       = $1e    ' store a byte in memory
-OP_LREF         = $1f    ' load a local variable relative to the frame pointer
-OP_LSET         = $20    ' set a local variable relative to the frame pointer
-OP_INDEX        = $21    ' index into a vector
-OP_CALL         = $22    ' push the pc and jump to a function */
-OP_FRAME        = $23    ' create a stack frame */
-OP_RETURN       = $24    ' remove a stack frame and return from a function call */
-OP_DROP         = $25    ' drop the top element of the stack
-OP_DUP          = $26    ' duplicate the top element of the stack
+OP_LADDR        = $1f    ' load a local variable relative to the frame pointer
+OP_INDEX        = $20    ' index into a vector
+OP_CALL         = $21    ' push the pc and jump to a function */
+OP_FRAME        = $22    ' create a stack frame */
+OP_RETURN       = $23    ' remove a stack frame and return from a function call */
+OP_DROP         = $24    ' drop the top element of the stack
+OP_DUP          = $25    ' duplicate the top element of the stack
+OP_TUCK         = $26    ' a b -> b a b
 OP_NATIVE       = $27    ' execute a native instruction
 OP_TRAP         = $28    ' invoke a trap handler
-OP_LAST         = $28
+OP_LAST         = $29
 
 DIV_OP          = 0
 REM_OP          = 1
@@ -92,16 +92,16 @@ _init1
         mov     t1,par
 
         ' get the mailbox address
-        rdlong  cmd_ptr,t1
+        mov     cmd_ptr,t1
         mov     arg_sts_ptr,cmd_ptr
         add     arg_sts_ptr,#4
         mov     arg2_fcn_ptr,arg_sts_ptr
         add     arg2_fcn_ptr,#4
-        add     t1,#4
+        add     t1,#12          ' sizeof(VM_Mailbox)
 
         ' get the state vector
-        rdlong  state_ptr,t1
-        add     t1,#4
+        mov     state_ptr,t1
+        add     t1,#20          ' sizeof(VM_State)
 
         ' setup the stack
         rdlong  stack,t1        ' load the stack base
@@ -237,14 +237,14 @@ opcode_table                            ' opcode dispatch table
         jmp     #_OP_LOADB              ' load a byte from memory
         jmp     #_OP_STORE              ' store a long into memory
         jmp     #_OP_STOREB             ' store a byte into memory
-        jmp     #_OP_LREF               ' load a local variable relative to the frame pointer
-        jmp     #_OP_LSET               ' set a local variable relative to the frame pointer
+        jmp     #_OP_LADDR              ' load the address of a local variable
         jmp     #_OP_INDEX              ' index into a vector
         jmp     #_OP_CALL               ' call a function
         jmp     #_OP_FRAME              ' push a frame onto the stack
         jmp     #_OP_RETURN             ' remove a frame from the stack and return from a function call
         jmp     #_OP_DROP               ' drop the top element of the stack
         jmp     #_OP_DUP                ' duplicate the top element of the stack
+        jmp     #_OP_TUCK               ' a b -> b a b
         jmp     #_OP_NATIVE             ' execute a native instruction
         jmp     #_OP_TRAP               ' invoke a trap handler
 
@@ -426,30 +426,23 @@ _OP_LOADB              ' load a byte from memory
 
 _OP_STORE              ' store a long into memory
         call    #pop_t1
-        mov     t2,t1
-        mov     t1,tos
+        mov     t2,tos
         call    #_write_long
-'        call    #pop_tos
         jmp     #_next
         
 _OP_STOREB             ' store a byte into memory
         call    #pop_t1
-        mov     t2,t1
-        mov     t1,tos
+        mov     t2,tos
         call    #_write_byte
-'        call    #pop_tos
         jmp     #_next
 
-_OP_LREF               ' load a local variable relative to the frame pointer
+_OP_LADDR              ' load the address of a local variable
         call    #push_tos
-        call    #lref
-        rdlong  tos,t1
-        jmp     #_next
-        
-_OP_LSET               ' set a local variable relative to the frame pointer
-        call    #lref
-        wrlong  tos,t1
-        call    #pop_tos
+        call    #get_code_byte
+        shl     t1,#24
+        sar     t1,#22
+        add     t1,fp
+        mov     tos,t1
         jmp     #_next
         
 _OP_INDEX               ' index into a vector
@@ -500,6 +493,16 @@ _OP_DUP                ' duplicate the top element of the stack
         call    #push_tos
         jmp     #_next
 
+_OP_TUCK               ' a b -> b a b
+        call    #push_tos
+        rdlong  t1,sp
+        mov     t2,sp
+        add     t2,#4
+        rdlong  t3,t2
+        wrlong  t1,t2
+        wrlong  sp,t3
+        jmp     #_next
+        
 _OP_TRAP
         call    #get_code_byte
         wrlong  t1,arg2_fcn_ptr
@@ -543,14 +546,6 @@ imm32
 imm32_ret
         ret
 
-lref
-        call    #get_code_byte
-        shl     t1,#24
-        sar     t1,#22
-        add     t1,fp
-lref_ret
-        ret
-        
 push_tos
         sub     sp,#4
         cmp     sp,stack wc,wz
