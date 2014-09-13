@@ -1,4 +1,5 @@
 Add comma operator.
 Fix bug with auto-dimensioned arrays.
-Implement 'break' and 'continue'.
-Implement the TUCK opcode to use with x++ and x--.
+Fix Propeller registers.
+Fix Propeller built-in functions.
+Do something about the lookahead required for if/else.

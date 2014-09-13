@@ -14,7 +14,7 @@
 #include "db_vmdebug.h"
 #include "db_vm.h"
 
-//#define DEBUG
+#define DEBUG
 
 /* Compile - compile a program */
 VMVALUE Compile(System *sys, ImageHdr *image)

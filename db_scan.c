@@ -26,6 +26,8 @@ static struct {
 {   "for",      T_FOR       },
 {   "do",       T_DO        },
 {   "while",    T_WHILE     },
+{   "continue", T_CONTINUE  },
+{   "break",    T_BREAK     },
 {   "goto",     T_GOTO      },
 {   "return",   T_RETURN    },
 {   "print",    T_PRINT     },

@@ -1,26 +1,33 @@
-**** THIS NEEDS TO BE UPDATED TO USE THE NEW C-LIKE SYNATX ****
-
 Language syntax:
 
-REM comment
+// comment
 
-DEF const = expr
+/* comment */
 
-DEF function-name
-DEF function-name ( arg [ , arg ]... )
+def const = expr ;
 
-END DEF
+def function-name ()
+{
+  /* statements */
+}
 
-RETURN expr
+def function-name ( arg [ , arg ]... )
+{
+  /* statements */
+}
 
-dim-statement:
+return;
 
-    DIM variable-def [ , variable-def ]...
+return expr;
+
+var-statement:
+
+    var variable-def [ , variable-def ]... ;
     
 variable-def:
 
-    var [ scalar-initializer ]
-    var '[' size ']' [ array-initializer ]
+    variable [ scalar-initializer ]
+    variable '[' size ']' [ array-initializer ]
     
 scalar-initializer:
 
@@ -30,47 +37,48 @@ array-initializer:
 
     = { constant-expr [ , constant-expr ]... }
 
-[LET] var = expr
+if ( expr ) statement
 
-IF expr
+if ( expr ) statement else statement
 
-ELSE IF expr
+for ( init-expr; test-expr; inc-expr ) statement
 
-ELSE
+while ( test-expr ) statement
 
-END IF
+do statement while ( test-expr )
 
-STOP
+continue ;
 
-END
-
-FOR var = start TO end [ STEP inc ]
-
-NEXT var
-
-DO
-DO WHILE expr
-DO UNTIL expr
-
-LOOP
-LOOP WHILE expr
-LOOP UNTIL expr
+break ;
 
 label:
 
-GOTO label
+goto label ;
 
-PRINT expr [ ;|, expr ]... [ ; ]
+print expr [ $|, expr ]... [ $ ] ;
 
-expr AND expr
-expr OR expr
+expr = expr
+
+expr += expr
+expr -= expr
+expr *= expr
+expr /= expr
+expr %= expr
+expr &= expr
+expr |= expr
+expr ^= expr
+expr <<= expr
+expr >>= expr
+
+expr && expr
+expr || expr
 
 expr ^ expr
 expr | expr
 expr & expr
 
-expr = expr
-expr <> expr
+expr == expr
+expr !=  expr
 
 expr < expr
 expr <= expr
@@ -84,12 +92,17 @@ expr + expr
 expr - expr
 expr * expr
 expr / expr
-expr MOD expr
+expr % expr
 
 - expr
 ~ expr
-NOT expr
+! expr
+++expr
+--expr
+expr++
+expr--
 
+function()
 function ( arg [, arg ]... )
 array [ index ]
 

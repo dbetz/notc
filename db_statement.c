@@ -27,6 +27,7 @@ static void ParseDo(ParseContext *c);
 static void FinishDoWhile(ParseContext *c);
 static void ParseFor(ParseContext *c);
 static void FinishFor(ParseContext *c);
+static void ParseBreakOrContinue(ParseContext *c, int isBreak);
 static void ParseGoto(ParseContext *c);
 static void ParseReturn(ParseContext *c);
 static void ParsePrint(ParseContext *c);
@@ -100,6 +101,12 @@ static int ParseStatement1(ParseContext *c, int tkn)
     case T_FOR:
         ParseFor(c);
         complete = VMFALSE;
+        break;
+    case T_BREAK:
+        ParseBreakOrContinue(c, VMTRUE);
+        break;
+    case T_CONTINUE:
+        ParseBreakOrContinue(c, VMFALSE);
         break;
     case T_GOTO:
         ParseGoto(c);
@@ -459,20 +466,21 @@ void FinishElse(ParseContext *c)
 static void ParseWhile(ParseContext *c)
 {
     PushBlock(c, BLOCK_WHILE);
-    c->bptr->u.DoBlock.nxt = codeaddr(c);
+    c->bptr->u.LoopBlock.cont = c->bptr->u.LoopBlock.nxt = codeaddr(c);
+    c->bptr->u.LoopBlock.contDefined = VMTRUE;
     FRequire(c, '(');
     ParseRValue(c);
     FRequire(c, ')');
     putcbyte(c, OP_BRF);
-    c->bptr->u.DoBlock.end = putcword(c, 0);
+    c->bptr->u.LoopBlock.end = putcword(c, 0);
 }
 
 /* FinishWhile - finish a 'while' statement */
 void FinishWhile(ParseContext *c)
 {
     int inst = putcbyte(c, OP_BR);
-    putcword(c, c->bptr->u.DoBlock.nxt - inst - 1 - sizeof(VMWORD));
-    fixupbranch(c, c->bptr->u.DoBlock.end, codeaddr(c));
+    putcword(c, c->bptr->u.LoopBlock.nxt - inst - 1 - sizeof(VMWORD));
+    fixupbranch(c, c->bptr->u.LoopBlock.end, codeaddr(c));
     PopBlock(c);
 }
 
@@ -480,21 +488,24 @@ void FinishWhile(ParseContext *c)
 static void ParseDo(ParseContext *c)
 {
     PushBlock(c, BLOCK_DO);
-    c->bptr->u.DoBlock.nxt = codeaddr(c);
-    c->bptr->u.DoBlock.end = 0;
+    c->bptr->u.LoopBlock.cont = 0;
+    c->bptr->u.LoopBlock.contDefined = VMFALSE;
+    c->bptr->u.LoopBlock.nxt = codeaddr(c);
+    c->bptr->u.LoopBlock.end = 0;
 }
 
 /* FinishDoWhile - finish a 'do/while' statement */
 void FinishDoWhile(ParseContext *c)
 {
     int inst;
+    fixupbranch(c, c->bptr->u.LoopBlock.cont, codeaddr(c));
     FRequire(c, T_WHILE);
     FRequire(c, '(');
     ParseRValue(c);
     FRequire(c, ')');
     inst = putcbyte(c, OP_BRT);
-    putcword(c, c->bptr->u.DoBlock.nxt - inst - 1 - sizeof(VMWORD));
-    fixupbranch(c, c->bptr->u.DoBlock.end, codeaddr(c));
+    putcword(c, c->bptr->u.LoopBlock.nxt - inst - 1 - sizeof(VMWORD));
+    fixupbranch(c, c->bptr->u.LoopBlock.end, codeaddr(c));
     PopBlock(c);
     FRequire(c, ';');
 }
@@ -503,7 +514,6 @@ void FinishDoWhile(ParseContext *c)
 static void ParseFor(ParseContext *c)
 {
     int tkn, nxt, body, inst, test;
-//    SENTRY *ob, *oc;
 
     PushBlock(c, BLOCK_FOR);
 
@@ -534,11 +544,12 @@ static void ParseFor(ParseContext *c)
     /* branch to the end if the expression is false */
     if (test) {
         putcbyte(c, OP_BR);
-        c->bptr->u.DoBlock.end = putcword(c, 0);
+        c->bptr->u.LoopBlock.end = putcword(c, 0);
     }
 
     /* compile the update expression */
-    c->bptr->u.DoBlock.nxt = codeaddr(c);
+    c->bptr->u.LoopBlock.cont = c->bptr->u.LoopBlock.nxt = codeaddr(c);
+    c->bptr->u.LoopBlock.contDefined = VMTRUE;
     if ((tkn = GetToken(c)) != ')') {
         SaveToken(c, tkn);
         ParseRValue(c);
@@ -552,8 +563,6 @@ static void ParseFor(ParseContext *c)
 
     /* compile the loop body */
     fixupbranch(c, body, codeaddr(c));
-//    ob = addbreak(c, end);
-//    oc = addcontinue(c, update);
 }
 
 /* FinishFor - finish a 'for' statement */
@@ -561,9 +570,37 @@ void FinishFor(ParseContext *c)
 {
     int inst;
     inst = putcbyte(c, OP_BR);
-    putcword(c, c->bptr->u.ForBlock.nxt - inst - 1 - sizeof(VMWORD));
-    fixupbranch(c, c->bptr->u.ForBlock.end, codeaddr(c));
+    putcword(c, c->bptr->u.LoopBlock.nxt - inst - 1 - sizeof(VMWORD));
+    fixupbranch(c, c->bptr->u.LoopBlock.end, codeaddr(c));
     PopBlock(c);
+}
+
+/* ParseBreakOrContinue - parse a 'break' or 'continue' statement */
+static void ParseBreakOrContinue(ParseContext *c, int isBreak)
+{
+    Block *block = c->bptr;
+    int inst;
+    for (block = c->bptr; block >= c->blockBuf; --block) {
+        switch (block->type) {
+        case BLOCK_FOR:
+        case BLOCK_WHILE:
+        case BLOCK_DO:
+            inst = putcbyte(c, OP_BR);
+            if (isBreak)
+                block->u.LoopBlock.end = putcword(c, block->u.LoopBlock.end);
+            else {
+                if (block->u.LoopBlock.contDefined)
+                    putcword(c, block->u.LoopBlock.cont - inst - 1 - sizeof(VMWORD));
+                else
+                    block->u.LoopBlock.cont = putcword(c, block->u.LoopBlock.cont);
+            }
+            FRequire(c, ';');
+            return;
+        default:
+            break;
+        }
+    }
+    ParseError(c, "'continue' not allowed outside of a loop");
 }
 
 /* ParseGoto - parse the 'GOTO' statement */

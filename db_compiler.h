@@ -32,6 +32,8 @@ enum {
     T_FOR,
     T_DO,
     T_WHILE,
+    T_CONTINUE,
+    T_BREAK,
     T_GOTO,
     T_RETURN,
     T_PRINT,
@@ -92,13 +94,11 @@ struct Block {
             int end;
         } ElseBlock;
         struct {
+            int cont;
+            int contDefined;
             int nxt;
             int end;
-        } ForBlock;
-        struct {
-            int nxt;
-            int end;
-        } DoBlock;
+        } LoopBlock;
     } u;
 };
 
