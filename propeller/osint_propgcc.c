@@ -101,11 +101,3 @@ void VM_closedir(VMDIR *dir)
 }
 
 #endif
-
-void LOG_printf(const char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    VM_vprintf(fmt, ap);
-    va_end(ap);
-}
