@@ -13,6 +13,8 @@
 #include "../db_vm.h"
 #include "../db_vmdebug.h"
 
+#define STACK_SIZE  128
+
 /* VM commands */
 enum {
     VM_Done           = 0,
@@ -59,31 +61,30 @@ typedef struct {
     int cogn;
 } Interpreter;
 
+/* only one COG running the VM for the moment */
+static Interpreter interpreter;
+static int started = VMFALSE;
+static VMVALUE stack[STACK_SIZE];
+
 use_cog_driver(notc_vm);
 
-static int StartInterpreter(Interpreter *i, size_t stackSize);
+static int StartInterpreter(Interpreter *i, VMVALUE *stack, size_t stackSize);
 static void StopInterpreter(Interpreter *i);
 static void ShowState(Interpreter *i);
 
 /* Execute - execute the main code */
 int Execute(System *sys, ImageHdr *image, VMVALUE main)
 {
-    size_t stackSize;
-    Interpreter *i;
+    Interpreter *i = &interpreter;
     int running;
     
-    /* allocate the interpreter state */
-    if (!(i = (Interpreter *)AllocateFreeSpace(sys, sizeof(Interpreter))))
-        return VMFALSE;
-
-    /* make sure there is space left for the stack */
-    if ((stackSize = sys->freeTop - sys->freeNext) < MIN_STACK_SIZE)
-        return VMFALSE;
-        
-    /* start the bytecode interpreter cog */
-    if (!StartInterpreter(i, stackSize))
-        return VMFALSE;
-
+    /* initialize the interpreter COG if necessary */
+    if (!started) {
+        if (!StartInterpreter(i, stack, sizeof(stack)))
+            return VMFALSE;
+        started = VMTRUE;
+    }
+    
     i->state.pc = (uint8_t *)main;
     i->state.stepping = 0;
     i->mailbox.cmd = VM_Continue;
@@ -169,17 +170,16 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
         }
     }
     
-    StopInterpreter(i);
+//    StopInterpreter(i);
     
     return 0;
 }
 
 /* StartInterpreter - start the bytecode interpreter */
-static int StartInterpreter(Interpreter *i, size_t stackSize)
+static int StartInterpreter(Interpreter *i, VMVALUE *stack, size_t stackSize)
 {
-    VMVALUE *stack, *stackTop;
+    VMVALUE *stackTop;
 
-    stack = (VMVALUE *)((uint8_t *)i + sizeof(Interpreter));
     stackTop = (VMVALUE *)((uint8_t *)stack + stackSize);
 
     i->stack = stack;
