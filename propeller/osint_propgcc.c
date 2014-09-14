@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <ctype.h>
 #include <dirent.h>
-#include "db_vm.h"
+#include "../db_vm.h"
 
 #if defined(USE_FDS) || defined(LOAD_SAVE)
 
