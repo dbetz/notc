@@ -129,7 +129,7 @@ get_command
         tjz     t1,#get_command
 
 parse_command
-        cmp     t1,#_VM_Last wc,wz ' check for valid command
+        cmp     t1,#_VM_Last wc,wz  ' check for valid command
   if_a  jmp     #err_command
         add     t1,#cmd_table-1 
         jmp     t1                  ' jump to command handler

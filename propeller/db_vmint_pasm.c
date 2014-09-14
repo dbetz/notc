@@ -110,11 +110,11 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
             switch (i->mailbox.arg2_fcn) {
             case TRAP_GetChar:
                 *--i->state.sp = i->state.tos;
-                i->state.tos = getchar();
+                i->state.tos = VM_getchar();
                 i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PutChar:
-                putchar(i->state.tos);
+                VM_putchar(i->state.tos);
                 i->state.tos = *i->state.sp++;
                 i->mailbox.cmd = VM_Continue;
                 break;
@@ -129,11 +129,11 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
                 i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintTab:
-                putchar('\t');
+                VM_putchar('\t');
                 i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintNL:
-                putchar('\n');
+                VM_putchar('\n');
                 i->mailbox.cmd = VM_Continue;
                 break;
             case TRAP_PrintFlush:

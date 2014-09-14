@@ -15,7 +15,7 @@ static void FinishFunctionDef(ParseContext *c);
 static void ParseVar(ParseContext *c);
 static int ParseVariableDecl(ParseContext *c, char *name, VMVALUE *pSize);
 static VMVALUE ParseScalarInitializer(ParseContext *c);
-static void ParseArrayInitializers(ParseContext *c, VMVALUE size);
+static void ParseArrayInitializers(ParseContext *c, VMVALUE *pSize);
 static void ClearArrayInitializers(ParseContext *c, VMVALUE size);
 static void ParseConstantDef(ParseContext *c, char *name);
 static void ParseIf(ParseContext *c);
@@ -256,7 +256,7 @@ static void ParseVar(ParseContext *c)
             /* check for initializers */
             if ((tkn = GetToken(c)) == '=') {
                 if (isArray)
-                    ParseArrayInitializers(c, size);
+                    ParseArrayInitializers(c, &size);
                 else {
                     dataPtr = (VMVALUE *)((long)dataPtr & ~3);
                     if (dataPtr >= (VMVALUE *)c->image->heapFree)
@@ -354,63 +354,38 @@ static VMVALUE ParseScalarInitializer(ParseContext *c)
 }
 
 /* ParseArrayInitializers - parse array initializers */
-static void ParseArrayInitializers(ParseContext *c, VMVALUE size)
+static void ParseArrayInitializers(ParseContext *c, VMVALUE *pSize)
 {
     VMVALUE *dataPtr = (VMVALUE *)c->image->codeBuf;
     VMVALUE *dataTop = (VMVALUE *)c->image->heapFree;
-    int done = VMFALSE;
-    int tkn;
-
+    int tkn, actualSize = 0;
+    VMVALUE value;
+    
     FRequire(c, '{');
-
-    /* handle each line of initializers */
-    while (!done) {
-        int lineDone = VMFALSE;
-
-        /* look for the first non-blank line */
-        while ((tkn = GetToken(c)) == ';') {
-            if (!GetLine(c->sys))
-                ParseError(c, "unexpected end of file in initializers");
-        }
-
-        /* check for the end of the initializers */
-        if (tkn == '}')
-            break;
+    
+    if ((tkn = GetToken(c)) != '}') {
         SaveToken(c, tkn);
-
-        /* handle each initializer in the current line */
-        while (!lineDone) {
-            VMVALUE value;
+        do {
+            /* count another initializer */
+            ++actualSize;
+            
+            /* check for too many initializers */
+            if (*pSize > 0 && actualSize > *pSize)
+                ParseError(c, "too many initializers");
 
             /* get a constant expression */
             value = ParseScalarInitializer(c);
-
-            /* check for too many initializers */
-            if (--size < 0)
-                ParseError(c, "too many initializers");
 
             /* store the initial value */
             if (dataPtr >= dataTop)
                 ParseError(c, "insufficient image space");
             *dataPtr++ = value;
-
-            switch (tkn = GetToken(c)) {
-            case ';':
-                lineDone = VMTRUE;
-                break;
-            case '}':
-                lineDone = VMTRUE;
-                done = VMTRUE;
-                break;
-            case ',':
-                break;
-            default:
-                ParseError(c, "expecting a comma, right brace or end of line");
-                break;
-            }
-
-        }
+            
+        } while ((tkn = GetToken(c)) == ',');
     }
+    
+    if (*pSize == 0)
+        *pSize = actualSize;
 }
 
 /* ClearArrayInitializers - clear the array initializers */

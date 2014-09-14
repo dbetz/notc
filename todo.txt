@@ -1,5 +1,5 @@
 Add comma operator.
-Fix bug with auto-dimensioned arrays.
-Fix Propeller registers.
-Fix Propeller built-in functions.
 Do something about the lookahead required for if/else.
+
+Fix Propeller built-in functions.
+Don't reload the COG for every call to Execute().

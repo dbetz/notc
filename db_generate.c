@@ -39,7 +39,10 @@ static void code_expr(ParseContext *c, ParseTreeNode *expr, PVAL *pv)
     switch (expr->nodeType) {
     case NodeTypeGlobalSymbolRef:
         putcbyte(c, OP_LIT);
-        putclong(c, (VMVALUE)expr->u.symbolRef.symbol);
+        if (expr->u.symbolRef.symbol->storageClass == SC_HWVARIABLE)
+            putclong(c, expr->u.symbolRef.symbol->value);
+        else
+            putclong(c, (VMVALUE)expr->u.symbolRef.symbol);
         *pv = VT_LVALUE;
         break;
     case NodeTypeLocalSymbolRef:

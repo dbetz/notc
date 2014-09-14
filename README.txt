@@ -51,7 +51,7 @@ continue ;
 
 break ;
 
-label:
+label :
 
 goto label ;
 
