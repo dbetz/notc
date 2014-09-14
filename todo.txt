@@ -1,5 +1,2 @@
 Add comma operator.
 Do something about the lookahead required for if/else.
-
-Fix Propeller built-in functions.
-Don't reload the COG for every call to Execute().
