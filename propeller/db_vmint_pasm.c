@@ -172,7 +172,7 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
     
 //    StopInterpreter(i);
     
-    return 0;
+    return VMTRUE;
 }
 
 /* StartInterpreter - start the bytecode interpreter */

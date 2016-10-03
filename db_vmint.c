@@ -34,7 +34,7 @@ typedef struct {
                                 (i)->sp -= (n);                 \
                         } while (0)
 #define CPush(i, v)     do {                                    \
-                            if ((i)->sp - 1 < (i)->stack)       \
+                            if ((i)->sp <= (i)->stack)          \
                                 StackOverflow(i);               \
                             else                                \
                                 Push(i, v);                     \
@@ -199,7 +199,7 @@ int Execute(System *sys, ImageHdr *image, VMVALUE main)
             i->tos = (tmp > i->tos ? VMTRUE : VMFALSE);
             break;
         case OP_LIT:
-            for (tmp = 0, cnt = sizeof(VMUVALUE); --cnt >= 0; )
+            for (tmp = 0, cnt = sizeof(VMVALUE); --cnt >= 0; )
                 tmp = (tmp << 8) | VMCODEBYTE(i->pc++);
             CPush(i, i->tos);
             i->tos = tmp;

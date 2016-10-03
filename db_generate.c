@@ -41,8 +41,10 @@ static void code_expr(ParseContext *c, ParseTreeNode *expr, PVAL *pv)
         putcbyte(c, OP_LIT);
         if (expr->u.symbolRef.symbol->storageClass == SC_HWVARIABLE)
             putclong(c, expr->u.symbolRef.symbol->value);
-        else
+        else {
+            // the value is the first field of the symbol structure
             putclong(c, (VMVALUE)expr->u.symbolRef.symbol);
+        }
         *pv = VT_LVALUE;
         break;
     case NodeTypeLocalSymbolRef:

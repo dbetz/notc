@@ -20,9 +20,9 @@ int main(int argc, char *argv[])
     VMVALUE code;
     System *sys;
 
-    VM_printf("notc 0.001\n");
-
     VM_sysinit(argc, argv);
+
+    VM_printf("notc 0.001\n");
 
     sys = InitSystem(space, sizeof(space));
     sys->getLine = TermGetLine;

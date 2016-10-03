@@ -49,6 +49,30 @@ typedef uint32_t VMUVALUE;
 
 #endif  // MAC
 
+/*********/
+/* PIC32 */
+/*********/
+
+#if defined(PIC32)
+
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+typedef int16_t VMWORD;
+typedef int32_t VMVALUE;
+typedef uint32_t VMUVALUE;
+
+#define ALIGN_MASK              3
+
+#define VMCODEBYTE(p)           *(uint8_t *)(p)
+#define VMINTRINSIC(i)          Intrinsics[i]
+
+#define LINE_EDIT
+#define ECHO_INPUT
+
+#endif  // MAC
+
 /*****************/
 /* PROPELLER_GCC */
 /*****************/
@@ -78,6 +102,8 @@ typedef uint32_t VMUVALUE;
 
 #ifdef ANSI_FILE_IO
 
+#if 0
+
 #include <stdio.h>
 #include <dirent.h>
 
@@ -95,6 +121,8 @@ struct VMDIR {
 struct VMDIRENT {
     char name[FILENAME_MAX];
 };
+
+#endif
 
 #endif // ANSI_FILE_IO
 
